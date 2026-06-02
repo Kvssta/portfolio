@@ -21,11 +21,31 @@ const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_URL}`
     : "http://localhost:3000";
 
+const title = "Nikola Kostadinovic";
+const description =
+  "Nikola Kostadinovic is an independent software designer in AI.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Nikola Kostadinovic",
-  description:
-    "Nikola Kostadinovic is an independent software designer in AI.",
+  title,
+  description,
+  // The opengraph-image.png file auto-populates og:image / twitter:image.
+  // These explicit blocks pin the card type and add X attribution so the
+  // large-image card renders consistently on X / Twitter.
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: title,
+    title,
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    site: "@kosta4a",
+    creator: "@kosta4a",
+  },
 };
 
 export default function RootLayout({

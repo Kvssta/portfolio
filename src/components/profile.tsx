@@ -1,7 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
+import { motion, MotionConfig, type Variants } from "motion/react";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import type { SoundPatch } from "@web-kits/audio";
 import minimalJson from "@/sounds/minimal.json";
@@ -44,6 +45,7 @@ const projects: Project[] = [
   },
   { name: "Melrose", role: "Web (no-code)", href: "https://getmelrose.com" },
   { name: "Tembo", role: "Product", href: "https://tembo.io" },
+  { name: "Sonatic", role: "Website", href: "https://sonatic.co" },
 ];
 
 function ArrowUpRight() {
@@ -61,6 +63,37 @@ function ArrowUpRight() {
     >
       <path d="M5 11 11 5" />
       <path d="M5.5 5H11v5.5" />
+    </svg>
+  );
+}
+
+/** Hand-drawn signature (from Figma) that animates as if being written on load. */
+function Signature() {
+  return (
+    <svg
+      width={85}
+      height={36}
+      viewBox="0 0 86.3619 37.7352"
+      fill="none"
+      role="img"
+      aria-label="Nikola Kostadinovic's signature"
+      className="mb-3 h-[36px] w-[85px] shrink-0 overflow-visible text-black"
+    >
+      <motion.path
+        d="M11.2252 15.5587C3.50887 24.9469 -7.29395 41.0552 11.2252 30.3822C29.7443 19.7093 39.2733 6.17045 41.7229 0.735157L30.0216 33.4904C29.6847 34.4334 30.7892 35.2313 31.5786 34.6151L52.195 18.5234M71.4858 0.735157L52.195 18.5234M52.195 18.5234L85.9998 5.39398M52.195 18.5234C25.3717 24.594 -12.181 36.7352 52.195 36.7352"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={1}
+        strokeDasharray="1 1"
+        initial={{ strokeDashoffset: 1, opacity: 0 }}
+        animate={{ strokeDashoffset: 0, opacity: 1 }}
+        transition={{
+          strokeDashoffset: { duration: 1.6, ease: "easeInOut", delay: 0.3 },
+          opacity: { duration: 0.2, delay: 0.3 },
+        }}
+      />
     </svg>
   );
 }
@@ -110,6 +143,70 @@ function HoverPreview({
   );
 }
 
+/** Email that copies to the clipboard on click and flashes a "Copied" toast. */
+function CopyEmail({
+  email,
+  onCopy,
+  onHover,
+}: {
+  email: string;
+  onCopy: () => void;
+  onHover: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(email);
+    } catch {
+      // Async Clipboard API blocked (insecure context, missing focus, etc.) —
+      // fall back to a hidden textarea + execCommand so the email still copies.
+      const ta = document.createElement("textarea");
+      ta.value = email;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "0";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch {
+        // Nothing more we can do; the toast still flashes.
+      }
+      document.body.removeChild(ta);
+    }
+    onCopy();
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 1600);
+  };
+
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onClick={copy}
+        onPointerEnter={onHover}
+        className="cursor-pointer bg-transparent p-0 align-baseline underline decoration-dotted underline-offset-2 transition-opacity duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:opacity-70"
+      >
+        {email}
+      </button>
+      <span aria-hidden className={`copied-toast${copied ? " is-visible" : ""}`}>
+        Copied to clipboard
+      </span>
+    </span>
+  );
+}
+
 function ProjectRow({
   name,
   role,
@@ -149,6 +246,27 @@ function ProjectRow({
   );
 }
 
+// Page-load entrance: each row fades up from below, staggered top-to-bottom.
+const stagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+};
+
+// Nested groups (header lines, bio paragraphs) cascade their own rows in turn.
+const group: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07 } },
+};
+
+const rowReveal: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.23, 1, 0.32, 1] },
+  },
+};
+
 function ProfileInner() {
   const patch = usePatch(minimalPatch);
   const playHover = () => {
@@ -159,21 +277,40 @@ function ProfileInner() {
   };
 
   return (
-    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-white px-5 py-16 text-black sm:items-center">
-      <div className="flex w-full max-w-[560px] flex-col gap-10 text-[14px] leading-[20px] font-sans">
+    <MotionConfig reducedMotion="user">
+    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 py-16 text-black sm:items-center">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={stagger}
+        className="flex w-full flex-col items-center gap-10 text-[14px] leading-[20px] font-sans font-medium"
+      >
         {/* Header */}
-        <header className="flex flex-col gap-2">
-          <p className="text-black">Nikola Kostadinovic</p>
-          <p className="text-[#8d8d8d]">prev. co-founder of Adria Studio</p>
-        </header>
+        <motion.header
+          variants={group}
+          className="flex w-full max-w-[560px] flex-col gap-1"
+        >
+          <Signature />
+          <motion.p variants={rowReveal} className="text-black">
+            Nikola Kostadinovic
+          </motion.p>
+          <motion.p variants={rowReveal} className="text-[#8d8d8d]">
+            prev. co-founder of Adria Studio
+          </motion.p>
+        </motion.header>
 
-        {/* Bio */}
-        <div className="flex flex-col gap-5 break-words">
-          <p>
-            I&rsquo;m an independent software designer based in Serbia that often
-            vibe-codes random software purely for enjoyment.
-          </p>
-          <p>
+        {/* Bio — paragraphs separated by blank lines (per Figma) with zero
+            flex gap between them. */}
+        <motion.div
+          variants={group}
+          className="flex w-full max-w-[560px] flex-col gap-0 break-words"
+        >
+          <motion.p variants={rowReveal}>
+            I&rsquo;m an independent software designer born in the same
+            birthplace as Constantine the Great.
+          </motion.p>
+          <p aria-hidden>&nbsp;</p>
+          <motion.p variants={rowReveal}>
             Currently working on passion projects, improving my driving skills
             in my{" "}
             <HoverPreview
@@ -188,32 +325,55 @@ function ProfileInner() {
               onHover={playHover}
             />
             .
-          </p>
-          <p>
+          </motion.p>
+          <p aria-hidden>&nbsp;</p>
+          <motion.p variants={rowReveal}>
             I previously co-founded Adria Studio and scaled it to $400k+ per
-            year, a 2-person boutique design studio focused on working with US /
-            CAN startups. Notable clients include Chaos Labs, Whop, Ostium,
-            Tembo, Buildcores &amp; 15+ more. I&rsquo;m used to working in
-            high-stake and high-pressure environments.
-          </p>
-          <p>
+            year, a 2-person boutique design studio focused on working with
+            a16z/yc backed startups. Notable clients include Chaos Labs, Whop,
+            Ostium, Tembo, Buildcores &amp; 15+ more.
+          </motion.p>
+          <p aria-hidden>&nbsp;</p>
+          <motion.p variants={rowReveal}>
             Had my work featured on inspiration/award websites including Mobbin,
             Godly &amp; more.
-          </p>
-          <p>
+          </motion.p>
+          <p aria-hidden>&nbsp;</p>
+          <motion.p variants={rowReveal}>
             Currently open to founding / product design roles at AI startups.
-          </p>
-        </div>
+            Reach out to me via{" "}
+            <CopyEmail
+              email="me@uxkosta.com"
+              onCopy={playClick}
+              onHover={playHover}
+            />{" "}
+            or DM me on{" "}
+            <a
+              href="https://x.com/kosta4a"
+              target="_blank"
+              rel="noopener noreferrer"
+              onPointerEnter={playHover}
+              onPointerDown={playClick}
+              className="underline decoration-dotted underline-offset-2 transition-opacity duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:opacity-70"
+            >
+              Twitter
+            </a>
+            .
+          </motion.p>
+        </motion.div>
 
-        {/* Highlights */}
-        <section className="flex flex-col gap-4">
-          <div className="flex w-full items-center justify-between">
+        {/* Highlights — bordered card (per Figma 16:366). The header's bottom
+            hairline replaces the old standalone divider. */}
+        <motion.section
+          variants={rowReveal}
+          className="w-full max-w-[604px] overflow-clip rounded-[20px] border-[0.5px] border-[rgba(0,0,0,0.12)] bg-white"
+        >
+          <div className="flex w-full items-center justify-between border-b-[0.5px] border-b-[rgba(0,0,0,0.12)] p-5">
             <p className="text-black">Highlights</p>
             <p className="text-[#8d8d8d]">worked on</p>
           </div>
-          <div className="h-px w-full bg-[#f0f0f0]" />
           {/* Each row dims only itself on hover (not the whole column). */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 p-5 pb-[22px]">
             {projects.map((p) => (
               <ProjectRow
                 key={p.name}
@@ -223,9 +383,10 @@ function ProfileInner() {
               />
             ))}
           </div>
-        </section>
-      </div>
+        </motion.section>
+      </motion.div>
     </main>
+    </MotionConfig>
   );
 }
 

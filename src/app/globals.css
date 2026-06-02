@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #171717;
 }
 
@@ -24,7 +24,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Pin to the real Geist weights — never let the browser synthesize a faux
+     weight/style, which renders inconsistently across browsers. */
+  font-synthesis: none;
 }
 
 /* --- Inline-link hover preview (photo card stack) --------------------------
@@ -94,5 +96,38 @@ body {
     transition-delay: 0ms;
     transform: translateX(var(--dx)) translateY(0) scale(1) rotate(var(--r));
     filter: blur(0);
+  }
+}
+
+/* --- "Copied to clipboard" toast -------------------------------------------
+   Black pill that flashes above the email when it's copied (per Figma). */
+.copied-toast {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 1000px;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px) scale(0.96);
+  transition:
+    opacity 150ms ease-out,
+    transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.copied-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copied-toast {
+    transition-duration: 1ms;
   }
 }
