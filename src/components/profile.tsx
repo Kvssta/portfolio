@@ -427,8 +427,22 @@ function ProfileInner() {
     top: number;
   } | null>(null);
 
-  // Snorlax arrives 2s after load (bottom-left), fading in with a "success" chime.
+  // Snorlax is desktop-only — hidden on mobile / tablet breakpoints.
+  const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // On desktop, Snorlax arrives 2s after load (bottom-left) with a "success" chime.
+  useEffect(() => {
+    if (!isDesktop) {
+      setSnorlaxVisible(false);
+      return;
+    }
     snorlaxTimer.current = setTimeout(() => {
       setSnorlaxPos({
         left: SNORLAX_EDGE_MARGIN,
@@ -441,7 +455,7 @@ function ProfileInner() {
       if (snorlaxTimer.current) clearTimeout(snorlaxTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDesktop]);
 
   // Click Snorlax: "undo" + vanish for 2s, then reappear somewhere random.
   const handleSnorlaxClick = () => {
@@ -566,7 +580,7 @@ function ProfileInner() {
         </motion.section>
       </motion.div>
       <AnimatePresence>
-        {snorlaxVisible && snorlaxPos && (
+        {isDesktop && snorlaxVisible && snorlaxPos && (
           <motion.div
             key="snorlax"
             onClick={handleSnorlaxClick}
