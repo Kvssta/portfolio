@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
-import { motion, MotionConfig, type Variants } from "motion/react";
+import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import type { SoundPatch } from "@web-kits/audio";
 import minimalJson from "@/sounds/minimal.json";
@@ -21,12 +21,12 @@ type CardData = {
 // Card order = back-to-front. The back card pops first, the front one follows.
 const caymanCards: CardData[] = [
   { src: "/cards/cayman-2.jpg", alt: "718 Cayman by a parking structure", dx: 34, rotate: 11.9, delay: 0 },
-  { src: "/cards/cayman-1.jpg", alt: "718 Cayman at night", dx: -34, rotate: -6.58, delay: 110 },
+  { src: "/cards/cayman-1.jpg", alt: "718 Cayman at night", dx: -34, rotate: -6.58, delay: 0 },
 ];
 
 const fujiCards: CardData[] = [
   { src: "/cards/fuji-2.jpg", alt: "Fujifilm photo of a facade", dx: 34, rotate: 11.9, delay: 0 },
-  { src: "/cards/fuji-1.jpg", alt: "Fujifilm photo of a building", dx: -34, rotate: -6.58, delay: 110 },
+  { src: "/cards/fuji-1.jpg", alt: "Fujifilm photo of a building", dx: -34, rotate: -6.58, delay: 0 },
 ];
 
 type Project = {
@@ -44,7 +44,6 @@ const projects: Project[] = [
     href: "https://x.com/kosta4a/status/2059988794695164193",
   },
   { name: "Melrose", role: "Web (no-code)", href: "https://getmelrose.com" },
-  { name: "Tembo", role: "Product", href: "https://tembo.io" },
   { name: "Sonatic", role: "Website", href: "https://sonatic.co" },
 ];
 
@@ -76,7 +75,7 @@ function Signature() {
       viewBox="0 0 86.3619 37.7352"
       fill="none"
       role="img"
-      aria-label="Nikola Kostadinovic's signature"
+      aria-label="Nikola Kostadinović's signature"
       className="mb-3 h-[36px] w-[85px] shrink-0 overflow-visible text-black"
     >
       <motion.path
@@ -95,6 +94,99 @@ function Signature() {
         }}
       />
     </svg>
+  );
+}
+
+/** Live local time in Belgrade (CET/CEST). Click to toggle 12h ⇄ 24h (EU). */
+function LocalTime({
+  onHover,
+  onToggle,
+}: {
+  onHover: () => void;
+  onToggle: () => void;
+}) {
+  const [now, setNow] = useState<Date | null>(null);
+  const [hour12, setHour12] = useState(true);
+
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Render a placeholder until mounted so SSR and the client first paint match.
+  if (!now) {
+    return <span suppressHydrationWarning>…</span>;
+  }
+
+  const formatted = new Intl.DateTimeFormat(hour12 ? "en-US" : "en-GB", {
+    timeZone: "Europe/Belgrade",
+    hour: hour12 ? "numeric" : "2-digit",
+    minute: "2-digit",
+    hour12,
+  }).format(now);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onToggle();
+        setHour12((v) => !v);
+      }}
+      onPointerEnter={onHover}
+      aria-label={`Local time, ${formatted}. Click to switch to ${hour12 ? "24-hour" : "12-hour"} format`}
+      className="relative inline-flex cursor-pointer items-baseline bg-transparent p-0 align-baseline tabular-nums underline decoration-dotted underline-offset-2 transition-opacity duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:opacity-70"
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={hour12 ? "12h" : "24h"}
+          initial={{ opacity: 0, y: 4, filter: "blur(3px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: -4, filter: "blur(3px)" }}
+          transition={{ duration: 0.26, ease: [0.23, 1, 0.32, 1] }}
+          className="inline-block"
+        >
+          {formatted}
+        </motion.span>
+      </AnimatePresence>
+    </button>
+  );
+}
+
+/** Sleepy Z's drifting up from the top-middle of the Snorlax, fading out as
+    they rise. Mixed upper/lowercase for an organic feel. */
+function SleepingZs() {
+  // delay (s) offset by half the cycle so at most 2 are ever in flight.
+  const zs = [
+    { delay: 0, letter: "z" },
+    { delay: 0.8, letter: "Z" },
+  ];
+  return (
+    <div aria-hidden className="pointer-events-none absolute left-1/2 top-0">
+      {zs.map((z, i) => (
+        <motion.span
+          key={i}
+          className="absolute left-0 top-0 font-sans font-medium text-[14px] leading-none text-[#8d8d8d]"
+          initial={{ opacity: 0, x: 0, y: 0, scale: 0.7 }}
+          animate={{
+            opacity: [0, 0.9, 0],
+            x: [0, 3 + i * 2, 5 + i * 4],
+            y: [0, -16, -40],
+            scale: [0.7, 0.95, 1.25],
+          }}
+          transition={{
+            duration: 1.6,
+            delay: z.delay,
+            repeat: Infinity,
+            ease: "easeOut",
+            // Pop in within the first ~15%, then rise + fade out.
+            times: [0, 0.15, 1],
+          }}
+        >
+          {z.letter}
+        </motion.span>
+      ))}
+    </div>
   );
 }
 
@@ -267,6 +359,50 @@ const rowReveal: Variants = {
   },
 };
 
+const SNORLAX_W = 117;
+const SNORLAX_H = 100;
+const SNORLAX_EDGE_MARGIN = 64; // min gap from the left/right/bottom edges
+const SNORLAX_TOP_MARGIN = 128; // min gap from the top edge
+
+/** Pick a random on-screen spot for Snorlax that stays ≥64px from the edges
+    (≥128px from the top) and avoids the centered content column. */
+function pickSnorlaxPosition(contentEl: HTMLElement | null) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const minLeft = SNORLAX_EDGE_MARGIN;
+  const maxLeft = Math.max(minLeft, W - SNORLAX_W - SNORLAX_EDGE_MARGIN);
+  const minTop = SNORLAX_TOP_MARGIN;
+  const maxTop = Math.max(minTop, H - SNORLAX_H - SNORLAX_EDGE_MARGIN);
+
+  let box: { left: number; right: number; top: number; bottom: number } | null =
+    null;
+  if (contentEl) {
+    const r = contentEl.getBoundingClientRect();
+    const pad = 24;
+    const halfW = 302 + pad; // ~half the 604px card, padded
+    const cx = W / 2; // content is horizontally centered
+    box = {
+      left: cx - halfW,
+      right: cx + halfW,
+      top: r.top - pad,
+      bottom: r.bottom + pad,
+    };
+  }
+
+  for (let i = 0; i < 60; i++) {
+    const left = minLeft + Math.random() * (maxLeft - minLeft);
+    const top = minTop + Math.random() * (maxTop - minTop);
+    const overlaps =
+      box &&
+      left < box.right &&
+      left + SNORLAX_W > box.left &&
+      top < box.bottom &&
+      top + SNORLAX_H > box.top;
+    if (!overlaps) return { left, top };
+  }
+  return { left: minLeft, top: maxTop };
+}
+
 function ProfileInner() {
   const patch = usePatch(minimalPatch);
   const playHover = () => {
@@ -276,10 +412,54 @@ function ProfileInner() {
     if (patch.ready) patch.play("click");
   };
 
+  // Keep the latest patch reachable from timers/handlers below.
+  const patchRef = useRef(patch);
+  patchRef.current = patch;
+  const playSound = (name: string) => {
+    if (patchRef.current.ready) patchRef.current.play(name);
+  };
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const snorlaxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [snorlaxVisible, setSnorlaxVisible] = useState(false);
+  const [snorlaxPos, setSnorlaxPos] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+
+  // Snorlax arrives 2s after load (bottom-left), fading in with a "success" chime.
+  useEffect(() => {
+    snorlaxTimer.current = setTimeout(() => {
+      setSnorlaxPos({
+        left: SNORLAX_EDGE_MARGIN,
+        top: window.innerHeight - SNORLAX_H - SNORLAX_EDGE_MARGIN,
+      });
+      setSnorlaxVisible(true);
+      playSound("success");
+    }, 2000);
+    return () => {
+      if (snorlaxTimer.current) clearTimeout(snorlaxTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Click Snorlax: "undo" + vanish for 2s, then reappear somewhere random.
+  const handleSnorlaxClick = () => {
+    playSound("undo");
+    setSnorlaxVisible(false);
+    if (snorlaxTimer.current) clearTimeout(snorlaxTimer.current);
+    snorlaxTimer.current = setTimeout(() => {
+      setSnorlaxPos(pickSnorlaxPosition(contentRef.current));
+      setSnorlaxVisible(true);
+      playSound("success");
+    }, 2000);
+  };
+
   return (
     <MotionConfig reducedMotion="user">
     <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 py-16 text-black sm:items-center">
       <motion.div
+        ref={contentRef}
         initial="hidden"
         animate="show"
         variants={stagger}
@@ -292,7 +472,7 @@ function ProfileInner() {
         >
           <Signature />
           <motion.p variants={rowReveal} className="text-black">
-            Nikola Kostadinovic
+            Nikola Kostadinović
           </motion.p>
           <motion.p variants={rowReveal} className="text-[#8d8d8d]">
             prev. co-founder of Adria Studio
@@ -307,7 +487,8 @@ function ProfileInner() {
         >
           <motion.p variants={rowReveal}>
             I&rsquo;m an independent software designer born in the same
-            birthplace as Constantine the Great.
+            birthplace as Constantine the Great. It&rsquo;s currently{" "}
+            <LocalTime onHover={playHover} onToggle={playClick} /> here.
           </motion.p>
           <p aria-hidden>&nbsp;</p>
           <motion.p variants={rowReveal}>
@@ -370,7 +551,6 @@ function ProfileInner() {
         >
           <div className="flex w-full items-center justify-between border-b-[0.5px] border-b-[rgba(0,0,0,0.12)] p-5">
             <p className="text-black">Highlights</p>
-            <p className="text-[#8d8d8d]">worked on</p>
           </div>
           {/* Each row dims only itself on hover (not the whole column). */}
           <div className="flex flex-col gap-4 p-5 pb-[22px]">
@@ -385,6 +565,32 @@ function ProfileInner() {
           </div>
         </motion.section>
       </motion.div>
+      <AnimatePresence>
+        {snorlaxVisible && snorlaxPos && (
+          <motion.div
+            key="snorlax"
+            onClick={handleSnorlaxClick}
+            whileTap={{ scale: 0.9 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+            style={{ left: snorlaxPos.left, top: snorlaxPos.top }}
+            className="fixed z-40 h-[100px] w-[117px] origin-bottom cursor-pointer select-none"
+            role="button"
+            aria-label="Snorlax — click to send him somewhere else"
+          >
+            <Image
+              src="/snorlax.png"
+              alt="Snorlax"
+              width={117}
+              height={100}
+              className="h-full w-full"
+            />
+            <SleepingZs />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
     </MotionConfig>
   );

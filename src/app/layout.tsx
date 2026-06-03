@@ -22,9 +22,9 @@ const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_URL}`
     : "http://localhost:3000";
 
-const title = "Nikola Kostadinovic";
+const title = "Nikola Kostadinović";
 const description =
-  "Nikola Kostadinovic is an independent software designer in AI.";
+  "Nikola Kostadinović is an independent software designer in AI.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
