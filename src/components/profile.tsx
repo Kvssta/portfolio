@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
+import { thoughts as thoughtsData } from "@/data/thoughts";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import type { SoundPatch } from "@web-kits/audio";
 import minimalJson from "@/sounds/minimal.json";
@@ -32,18 +33,19 @@ const fujiCards: CardData[] = [
 type Project = {
   name: string;
   role: string;
-  href?: string; // present = linked row (shows arrow)
+  href?: string; // external link (new tab, shows arrow)
+  onSelect?: () => void; // in-page action (e.g. open an article)
 };
 
 const projects: Project[] = [
-  { name: "Steel", role: "Product + Web (no-code)", href: "https://steel.dev" },
-  { name: "Acctual", role: "Web (no-code)", href: "https://acctual.com" },
+  { name: "Steel", role: "Product + Web (Framer)", href: "https://steel.dev" },
+  { name: "Acctual", role: "Web (Framer)", href: "https://acctual.com" },
   {
     name: "EVPin",
     role: "Web (NextJS)",
     href: "https://x.com/kosta4a/status/2059988794695164193",
   },
-  { name: "Melrose", role: "Web (no-code)", href: "https://getmelrose.com" },
+  { name: "Melrose", role: "Web (Framer)", href: "https://getmelrose.com" },
   { name: "Sonatic", role: "Website", href: "https://sonatic.co" },
 ];
 
@@ -58,7 +60,7 @@ function ArrowUpRight() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className="size-4 shrink-0"
+      className="size-5 shrink-0"
     >
       <path d="M5 11 11 5" />
       <path d="M5.5 5H11v5.5" />
@@ -150,43 +152,6 @@ function LocalTime({
         </motion.span>
       </AnimatePresence>
     </button>
-  );
-}
-
-/** Sleepy Z's drifting up from the top-middle of the Snorlax, fading out as
-    they rise. Mixed upper/lowercase for an organic feel. */
-function SleepingZs() {
-  // delay (s) offset by half the cycle so at most 2 are ever in flight.
-  const zs = [
-    { delay: 0, letter: "z" },
-    { delay: 0.8, letter: "Z" },
-  ];
-  return (
-    <div aria-hidden className="pointer-events-none absolute left-1/2 top-0">
-      {zs.map((z, i) => (
-        <motion.span
-          key={i}
-          className="absolute left-0 top-0 font-sans font-medium text-[14px] leading-none text-[#8d8d8d]"
-          initial={{ opacity: 0, x: 0, y: 0, scale: 0.7 }}
-          animate={{
-            opacity: [0, 0.9, 0],
-            x: [0, 3 + i * 2, 5 + i * 4],
-            y: [0, -16, -40],
-            scale: [0.7, 0.95, 1.25],
-          }}
-          transition={{
-            duration: 1.6,
-            delay: z.delay,
-            repeat: Infinity,
-            ease: "easeOut",
-            // Pop in within the first ~15%, then rise + fade out.
-            times: [0, 0.15, 1],
-          }}
-        >
-          {z.letter}
-        </motion.span>
-      ))}
-    </div>
   );
 }
 
@@ -303,9 +268,15 @@ function ProjectRow({
   name,
   role,
   href,
+  onSelect,
   onHover,
   onPress,
-}: Project & { onHover: () => void; onPress: () => void }) {
+  onActivate,
+}: Project & {
+  onHover: () => void;
+  onPress: () => void;
+  onActivate?: (el: HTMLElement) => void;
+}) {
   const title = (
     <span className="flex items-center gap-1">
       <span>{name}</span>
@@ -314,27 +285,121 @@ function ProjectRow({
   );
   const role_ = <span className="text-[#8d8d8d]">{role}</span>;
 
-  if (!href) {
+  // 12px padding; -mx-3 + width:100%+24px makes the row 24px wider than the
+  // 640px column so the text still aligns with the content above. z-10 keeps
+  // the content above the shared moving hover background.
+  const base =
+    "relative z-10 -mx-3 flex w-[calc(100%+24px)] cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-black";
+  const linkClass = `${base} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/15`;
+
+  // Internal note → opens its article in-page (no arrow).
+  if (onSelect) {
     return (
-      <div className="flex w-full items-center justify-between text-black">
+      <button
+        type="button"
+        onClick={onSelect}
+        onPointerEnter={(e) => {
+          onHover();
+          onActivate?.(e.currentTarget);
+        }}
+        onPointerDown={onPress}
+        className={`${linkClass} text-left`}
+      >
         {title}
         {role_}
-      </div>
+      </button>
     );
   }
 
+  // External link (video) → new tab with arrow.
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onPointerEnter={(e) => {
+          onHover();
+          onActivate?.(e.currentTarget);
+        }}
+        onPointerDown={onPress}
+        className={linkClass}
+      >
+        {title}
+        {role_}
+      </a>
+    );
+  }
+
+  // Plain row (no destination).
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onPointerEnter={onHover}
-      onPointerDown={onPress}
-      className="flex w-full items-center justify-between rounded-sm text-black outline-none transition-opacity duration-150 ease-(--ease-out-strong) focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white [@media(hover:hover)]:hover:opacity-70"
-    >
+    <div className={base} onPointerEnter={(e) => onActivate?.(e.currentTarget)}>
       {title}
       {role_}
-    </a>
+    </div>
+  );
+}
+
+/** A list of ProjectRows sharing a single background that slides between rows
+    on hover. It fades in on first hover and fades out when the list is left. */
+function HoverList({
+  items,
+  onHover,
+  onPress,
+}: {
+  items: Project[];
+  onHover: () => void;
+  onPress: () => void;
+}) {
+  const [active, setActive] = useState<number | null>(null);
+  const [box, setBox] = useState({ top: 0, height: 0, instant: true });
+  const wasActive = useRef(false);
+
+  const enter = (i: number, el: HTMLElement) => {
+    // Jump (no slide) when arriving from outside the list; slide when moving
+    // between rows.
+    setBox({ top: el.offsetTop, height: el.offsetHeight, instant: !wasActive.current });
+    wasActive.current = true;
+    setActive(i);
+  };
+
+  const posTransition = box.instant
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 500, damping: 44 };
+
+  return (
+    <div
+      className="relative -mt-1 flex flex-col gap-1"
+      onPointerLeave={() => {
+        wasActive.current = false;
+        setActive(null);
+      }}
+    >
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-3 z-0 rounded-xl bg-black/[0.04]"
+        initial={false}
+        animate={{
+          top: box.top,
+          height: box.height,
+          opacity: active !== null ? 1 : 0,
+        }}
+        transition={{
+          top: posTransition,
+          height: posTransition,
+          opacity: { duration: 0.2 },
+        }}
+      />
+      {items.map((item, i) => (
+        <ProjectRow
+          key={item.name}
+          {...item}
+          onHover={onHover}
+          onPress={onPress}
+          onActivate={(el) => enter(i, el)}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -359,48 +424,81 @@ const rowReveal: Variants = {
   },
 };
 
-const SNORLAX_W = 117;
-const SNORLAX_H = 100;
-const SNORLAX_EDGE_MARGIN = 64; // min gap from the left/right/bottom edges
-const SNORLAX_TOP_MARGIN = 128; // min gap from the top edge
+type Screen = "resume" | "thoughts" | "article";
 
-/** Pick a random on-screen spot for Snorlax that stays ≥64px from the edges
-    (≥128px from the top) and avoids the centered content column. */
-function pickSnorlaxPosition(contentEl: HTMLElement | null) {
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const minLeft = SNORLAX_EDGE_MARGIN;
-  const maxLeft = Math.max(minLeft, W - SNORLAX_W - SNORLAX_EDGE_MARGIN);
-  const minTop = SNORLAX_TOP_MARGIN;
-  const maxTop = Math.max(minTop, H - SNORLAX_H - SNORLAX_EDGE_MARGIN);
+const NAV_SEG =
+  "flex h-8 cursor-pointer items-center justify-center rounded-full px-2.5 py-px whitespace-nowrap transition-colors duration-150";
 
-  let box: { left: number; right: number; top: number; bottom: number } | null =
-    null;
-  if (contentEl) {
-    const r = contentEl.getBoundingClientRect();
-    const pad = 24;
-    const halfW = 302 + pad; // ~half the 604px card, padded
-    const cx = W / 2; // content is horizontally centered
-    box = {
-      left: cx - halfW,
-      right: cx + halfW,
-      top: r.top - pad,
-      bottom: r.bottom + pad,
-    };
-  }
+/** Bottom-center pill nav (Figma 33:552). It's a Resumé/Thoughts toggle that
+    smoothly expands into a breadcrumb (· › current article) on article pages. */
+function BottomNav({
+  screen,
+  articleTitle,
+  onResume,
+  onThoughts,
+  onHover,
+}: {
+  screen: Screen;
+  articleTitle: string;
+  onResume: () => void;
+  onThoughts: () => void;
+  onHover: () => void;
+}) {
+  const expanded = screen === "article";
+  // Retain the last title so it stays visible (clipping) while collapsing.
+  const titleRef = useRef(articleTitle);
+  if (articleTitle) titleRef.current = articleTitle;
 
-  for (let i = 0; i < 60; i++) {
-    const left = minLeft + Math.random() * (maxLeft - minLeft);
-    const top = minTop + Math.random() * (maxTop - minTop);
-    const overlaps =
-      box &&
-      left < box.right &&
-      left + SNORLAX_W > box.left &&
-      top < box.bottom &&
-      top + SNORLAX_H > box.top;
-    if (!overlaps) return { left, top };
-  }
-  return { left: minLeft, top: maxTop };
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-10 z-50 flex justify-center px-5">
+      <nav className="pointer-events-auto flex items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium">
+        <button
+          type="button"
+          onClick={onResume}
+          onPointerEnter={onHover}
+          className={`${NAV_SEG} ${screen === "resume" ? "bg-black/24 text-white" : "text-white/80 hover:text-white"}`}
+        >
+          Resumé
+        </button>
+        <button
+          type="button"
+          onClick={onThoughts}
+          onPointerEnter={onHover}
+          className={`${NAV_SEG} ml-1 ${screen === "thoughts" ? "bg-black/24 text-white" : "text-white/80 hover:text-white"}`}
+        >
+          Thoughts
+        </button>
+        {/* Grid 0fr↔1fr expands the crumb smoothly (CSS, reliably collapsible). */}
+        <div
+          aria-hidden={!expanded}
+          className="grid overflow-hidden transition-all duration-300 ease-(--ease-out-strong)"
+          style={{
+            gridTemplateColumns: expanded ? "1fr" : "0fr",
+            opacity: expanded ? 1 : 0,
+            filter: expanded ? "blur(0px)" : "blur(4px)",
+          }}
+        >
+          <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+            <svg
+              viewBox="0 0 20 20"
+              aria-hidden
+              className="ml-1 size-5 shrink-0 text-white/80"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M8 6l4 4-4 4" />
+            </svg>
+            <span className={`${NAV_SEG} bg-black/24 text-white`}>
+              {titleRef.current}
+            </span>
+          </div>
+        </div>
+      </nav>
+    </div>
+  );
 }
 
 function ProfileInner() {
@@ -411,200 +509,217 @@ function ProfileInner() {
   const playClick = () => {
     if (patch.ready) patch.play("click");
   };
+  const playCopy = () => {
+    if (patch.ready) patch.play("copy");
+  };
 
-  // Keep the latest patch reachable from timers/handlers below.
+  // Keep the latest patch reachable from handlers below.
   const patchRef = useRef(patch);
   patchRef.current = patch;
   const playSound = (name: string) => {
     if (patchRef.current.ready) patchRef.current.play(name);
   };
 
-  const contentRef = useRef<HTMLDivElement>(null);
-  const snorlaxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [snorlaxVisible, setSnorlaxVisible] = useState(false);
-  const [snorlaxPos, setSnorlaxPos] = useState<{
-    left: number;
-    top: number;
-  } | null>(null);
-
-  // Snorlax is desktop-only — hidden on mobile / tablet breakpoints.
-  const [isDesktop, setIsDesktop] = useState(false);
+  // The entrance stagger plays only on first load — switching screens is a
+  // plain crossfade, not a re-stagger.
+  const firstLoad = useRef(true);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    firstLoad.current = false;
   }, []);
 
-  // On desktop, Snorlax arrives 2s after load (bottom-left) with a "success" chime.
-  useEffect(() => {
-    if (!isDesktop) {
-      setSnorlaxVisible(false);
-      return;
-    }
-    snorlaxTimer.current = setTimeout(() => {
-      setSnorlaxPos({
-        left: SNORLAX_EDGE_MARGIN,
-        top: window.innerHeight - SNORLAX_H - SNORLAX_EDGE_MARGIN,
-      });
-      setSnorlaxVisible(true);
-      playSound("success");
-    }, 2000);
-    return () => {
-      if (snorlaxTimer.current) clearTimeout(snorlaxTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDesktop]);
+  // The bottom nav reflects `screen` immediately (so it expands right away),
+  // while the content crossfades: fade out, swap `shown*` at the midpoint,
+  // fade back in.
+  const [screen, setScreen] = useState<Screen>("resume");
+  const [articleSlug, setArticleSlug] = useState<string | null>(null);
+  const [shownScreen, setShownScreen] = useState<Screen>("resume");
+  const [shownArticle, setShownArticle] = useState<string | null>(null);
+  const [fading, setFading] = useState(false);
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Click Snorlax: "undo" + vanish for 2s, then reappear somewhere random.
-  const handleSnorlaxClick = () => {
-    playSound("undo");
-    setSnorlaxVisible(false);
-    if (snorlaxTimer.current) clearTimeout(snorlaxTimer.current);
-    snorlaxTimer.current = setTimeout(() => {
-      setSnorlaxPos(pickSnorlaxPosition(contentRef.current));
-      setSnorlaxVisible(true);
-      playSound("success");
-    }, 2000);
+  const goTo = (next: Screen, slug: string | null = null) => {
+    if (next === screen && slug === articleSlug) return;
+    setScreen(next);
+    setArticleSlug(slug);
+    setFading(true);
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    fadeTimer.current = setTimeout(() => {
+      setShownScreen(next);
+      setShownArticle(slug);
+      setFading(false);
+    }, 150);
   };
+
+  // Landing via "/#thoughts" opens straight to the Thoughts view.
+  useEffect(() => {
+    if (window.location.hash === "#thoughts") {
+      setScreen("thoughts");
+      setShownScreen("thoughts");
+    }
+  }, []);
+
+  // Thoughts rows: notes open their article in-page; videos open YouTube.
+  const thoughtRows: Project[] = thoughtsData.map((t) =>
+    t.kind === "video"
+      ? { name: t.title, role: "Video", href: t.href }
+      : { name: t.title, role: "Note", onSelect: () => goTo("article", t.slug) },
+  );
+
+  const shownArticleData = shownArticle
+    ? thoughtsData.find((t) => t.slug === shownArticle)
+    : null;
+  const navArticleTitle = articleSlug
+    ? (thoughtsData.find((t) => t.slug === articleSlug)?.title ?? "")
+    : "";
 
   return (
     <MotionConfig reducedMotion="user">
-    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 py-16 text-black sm:items-center">
-      <motion.div
-        ref={contentRef}
-        initial="hidden"
-        animate="show"
-        variants={stagger}
-        className="flex w-full flex-col items-center gap-10 text-[14px] leading-[20px] font-sans font-medium"
+    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-32 pb-24 text-black">
+      <div
+        style={{ opacity: fading ? 0 : 1 }}
+        className="flex w-full flex-col items-center text-[14px] leading-[20px] font-sans font-medium transition-opacity duration-150 ease-(--ease-out-strong)"
       >
-        {/* Header */}
-        <motion.header
-          variants={group}
-          className="flex w-full max-w-[560px] flex-col gap-1"
-        >
-          <Signature />
-          <motion.p variants={rowReveal} className="text-black">
-            Nikola Kostadinović
-          </motion.p>
-          <motion.p variants={rowReveal} className="text-[#8d8d8d]">
-            prev. co-founder of Adria Studio
-          </motion.p>
-        </motion.header>
+        {shownScreen === "resume" ? (
+          <motion.div
+            variants={stagger}
+            initial={firstLoad.current ? "hidden" : "show"}
+            animate="show"
+            className="flex w-full flex-col items-center gap-10"
+          >
+                {/* Header */}
+                <motion.header
+                  variants={group}
+                  className="flex w-full max-w-[640px] flex-col gap-1"
+                >
+                  <Signature />
+                  <motion.p variants={rowReveal} className="text-black">
+                    Nikola Kostadinović
+                  </motion.p>
+                  <motion.p variants={rowReveal} className="text-[#8d8d8d]">
+                    prev. co-founder of Adria Studio
+                  </motion.p>
+                </motion.header>
 
-        {/* Bio — paragraphs separated by blank lines (per Figma) with zero
-            flex gap between them. */}
-        <motion.div
-          variants={group}
-          className="flex w-full max-w-[560px] flex-col gap-0 break-words"
-        >
-          <motion.p variants={rowReveal}>
-            I&rsquo;m an independent software designer born in the same
-            birthplace as Constantine the Great. It&rsquo;s currently{" "}
-            <LocalTime onHover={playHover} onToggle={playClick} /> here.
-          </motion.p>
-          <p aria-hidden>&nbsp;</p>
-          <motion.p variants={rowReveal}>
-            Currently working on passion projects, improving my driving skills
-            in my{" "}
-            <HoverPreview
-              label="718 Cayman"
-              cards={caymanCards}
+                {/* Bio — paragraphs separated by blank lines (per Figma) with
+                    zero flex gap between them. */}
+                <motion.div
+                  variants={group}
+                  className="flex w-full max-w-[640px] flex-col gap-0 break-words"
+                >
+                  <motion.p variants={rowReveal}>
+                    I&rsquo;m an independent software designer born in the same
+                    birthplace as Constantine the Great. It&rsquo;s currently{" "}
+                    <LocalTime onHover={playHover} onToggle={playClick} /> here.
+                  </motion.p>
+                  <p aria-hidden>&nbsp;</p>
+                  <motion.p variants={rowReveal}>
+                    Currently working on passion projects, improving my driving
+                    skills in my{" "}
+                    <HoverPreview
+                      label="718 Cayman"
+                      cards={caymanCards}
+                      onHover={playHover}
+                    />{" "}
+                    as well as my photography skills with my{" "}
+                    <HoverPreview
+                      label="Fujifilm cam"
+                      cards={fujiCards}
+                      onHover={playHover}
+                    />
+                    .
+                  </motion.p>
+                  <p aria-hidden>&nbsp;</p>
+                  <motion.p variants={rowReveal}>
+                    I previously co-founded Adria Studio and scaled it to $400k+
+                    per year, a 2-person boutique design studio focused on
+                    working with a16z/yc backed startups. Notable clients
+                    include Chaos Labs, Whop, Ostium, Tembo, Buildcores &amp;
+                    15+ more.
+                  </motion.p>
+                  <p aria-hidden>&nbsp;</p>
+                  <motion.p variants={rowReveal}>
+                    Had my work featured on inspiration/award websites including
+                    Mobbin, Godly &amp; more.
+                  </motion.p>
+                  <p aria-hidden>&nbsp;</p>
+                  <motion.p variants={rowReveal}>
+                    Currently open to founding / product design roles at AI
+                    startups. Reach out to me via{" "}
+                    <CopyEmail
+                      email="me@uxkosta.com"
+                      onCopy={playCopy}
+                      onHover={playHover}
+                    />{" "}
+                    or DM me on{" "}
+                    <a
+                      href="https://x.com/kosta4a"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onPointerEnter={playHover}
+                      onPointerDown={playClick}
+                      className="underline decoration-dotted underline-offset-2 transition-opacity duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:opacity-70"
+                    >
+                      Twitter
+                    </a>
+                    .
+                  </motion.p>
+                </motion.div>
+
+                {/* Highlights — plain list (per Figma 4:71). Reveals last on
+                    first load (its own delay); appears instantly on toggle. */}
+                <motion.section
+                  initial={firstLoad.current ? { opacity: 0, y: 12 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: [0.23, 1, 0.32, 1],
+                    delay: firstLoad.current ? 1 : 0,
+                  }}
+                  className="flex w-full max-w-[640px] flex-col gap-4 pb-3"
+                >
+                  <p className="pb-2 text-black">Highlights</p>
+                  <div className="h-px w-8 bg-[#e8e8e8]" />
+                  <HoverList
+                    items={projects}
+                    onHover={playHover}
+                    onPress={playClick}
+                  />
+                </motion.section>
+          </motion.div>
+        ) : shownScreen === "thoughts" ? (
+          <div className="flex w-full max-w-[640px] flex-col gap-4 pb-3">
+            <p className="pb-2 text-black">Thoughts</p>
+            <div className="h-px w-8 bg-[#e8e8e8]" />
+            <HoverList
+              items={thoughtRows}
               onHover={playHover}
-            />{" "}
-            as well as my photography skills with my{" "}
-            <HoverPreview
-              label="Fujifilm cam"
-              cards={fujiCards}
-              onHover={playHover}
+              onPress={playClick}
             />
-            .
-          </motion.p>
-          <p aria-hidden>&nbsp;</p>
-          <motion.p variants={rowReveal}>
-            I previously co-founded Adria Studio and scaled it to $400k+ per
-            year, a 2-person boutique design studio focused on working with
-            a16z/yc backed startups. Notable clients include Chaos Labs, Whop,
-            Ostium, Tembo, Buildcores &amp; 15+ more.
-          </motion.p>
-          <p aria-hidden>&nbsp;</p>
-          <motion.p variants={rowReveal}>
-            Had my work featured on inspiration/award websites including Mobbin,
-            Godly &amp; more.
-          </motion.p>
-          <p aria-hidden>&nbsp;</p>
-          <motion.p variants={rowReveal}>
-            Currently open to founding / product design roles at AI startups.
-            Reach out to me via{" "}
-            <CopyEmail
-              email="me@uxkosta.com"
-              onCopy={playClick}
-              onHover={playHover}
-            />{" "}
-            or DM me on{" "}
-            <a
-              href="https://x.com/kosta4a"
-              target="_blank"
-              rel="noopener noreferrer"
-              onPointerEnter={playHover}
-              onPointerDown={playClick}
-              className="underline decoration-dotted underline-offset-2 transition-opacity duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:opacity-70"
-            >
-              Twitter
-            </a>
-            .
-          </motion.p>
-        </motion.div>
-
-        {/* Highlights — bordered card (per Figma 16:366). The header's bottom
-            hairline replaces the old standalone divider. */}
-        <motion.section
-          variants={rowReveal}
-          className="w-full max-w-[604px] overflow-clip rounded-[20px] border-[0.5px] border-[rgba(0,0,0,0.12)] bg-white"
-        >
-          <div className="flex w-full items-center justify-between border-b-[0.5px] border-b-[rgba(0,0,0,0.12)] p-5">
-            <p className="text-black">Highlights</p>
           </div>
-          {/* Each row dims only itself on hover (not the whole column). */}
-          <div className="flex flex-col gap-4 p-5 pb-[22px]">
-            {projects.map((p) => (
-              <ProjectRow
-                key={p.name}
-                {...p}
-                onHover={playHover}
-                onPress={playClick}
-              />
+        ) : shownArticleData ? (
+          <div className="flex w-full max-w-[640px] flex-col gap-5 break-words">
+            <p className="text-black">{shownArticleData.title}</p>
+            {shownArticleData.body?.map((paragraph, i) => (
+              <p key={i} className="text-[#8d8d8d]">
+                {paragraph}
+              </p>
             ))}
           </div>
-        </motion.section>
-      </motion.div>
-      <AnimatePresence>
-        {isDesktop && snorlaxVisible && snorlaxPos && (
-          <motion.div
-            key="snorlax"
-            onClick={handleSnorlaxClick}
-            whileTap={{ scale: 0.9 }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.85 }}
-            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-            style={{ left: snorlaxPos.left, top: snorlaxPos.top }}
-            className="fixed z-40 h-[100px] w-[117px] origin-bottom cursor-pointer select-none"
-            role="button"
-            aria-label="Snorlax — click to send him somewhere else"
-          >
-            <Image
-              src="/snorlax.png"
-              alt="Snorlax"
-              width={117}
-              height={100}
-              className="h-full w-full"
-            />
-            <SleepingZs />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        ) : null}
+      </div>
+      <BottomNav
+        screen={screen}
+        articleTitle={navArticleTitle}
+        onResume={() => {
+          playSound("tab-switch");
+          goTo("resume");
+        }}
+        onThoughts={() => {
+          playSound("tab-switch");
+          goTo("thoughts");
+        }}
+        onHover={playHover}
+      />
     </main>
     </MotionConfig>
   );
