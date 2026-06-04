@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
+import { WorkIsPlay } from "./work-is-play";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import { thoughts as thoughtsData } from "@/data/thoughts";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
@@ -451,7 +452,7 @@ function BottomNav({
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-10 z-50 flex justify-center px-5">
-      <nav className="pointer-events-auto flex items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium">
+      <nav className="pointer-events-auto flex items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium backdrop-blur-[10px]">
         <button
           type="button"
           onClick={onResume}
@@ -471,7 +472,7 @@ function BottomNav({
         {/* Grid 0fr↔1fr expands the crumb smoothly (CSS, reliably collapsible). */}
         <div
           aria-hidden={!expanded}
-          className="grid overflow-hidden transition-all duration-300 ease-(--ease-out-strong)"
+          className="grid overflow-hidden transition-all duration-[400ms] ease-(--ease-bounce)"
           style={{
             gridTemplateColumns: expanded ? "1fr" : "0fr",
             opacity: expanded ? 1 : 0,
@@ -574,7 +575,7 @@ function ProfileInner() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-32 pb-24 text-black">
+    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-12 pb-24 text-black sm:pt-32">
       <div
         style={{ opacity: fading ? 0 : 1 }}
         className="flex w-full flex-col items-center text-[14px] leading-[20px] font-sans font-medium transition-opacity duration-150 ease-(--ease-out-strong)"
@@ -589,7 +590,7 @@ function ProfileInner() {
                 {/* Header */}
                 <motion.header
                   variants={group}
-                  className="flex w-full max-w-[640px] flex-col gap-1"
+                  className="flex w-full max-w-[576px] flex-col gap-1"
                 >
                   <Signature />
                   <motion.p variants={rowReveal} className="text-black">
@@ -604,7 +605,7 @@ function ProfileInner() {
                     zero flex gap between them. */}
                 <motion.div
                   variants={group}
-                  className="flex w-full max-w-[640px] flex-col gap-0 break-words"
+                  className="flex w-full max-w-[576px] flex-col gap-0 break-words"
                 >
                   <motion.p variants={rowReveal}>
                     I&rsquo;m an independent software designer born in the same
@@ -675,7 +676,7 @@ function ProfileInner() {
                     ease: [0.23, 1, 0.32, 1],
                     delay: firstLoad.current ? 1 : 0,
                   }}
-                  className="flex w-full max-w-[640px] flex-col gap-4 pb-3"
+                  className="flex w-full max-w-[576px] flex-col gap-4 pb-3"
                 >
                   <p className="pb-2 text-black">Highlights</p>
                   <div className="h-px w-8 bg-[#e8e8e8]" />
@@ -687,7 +688,7 @@ function ProfileInner() {
                 </motion.section>
           </motion.div>
         ) : shownScreen === "thoughts" ? (
-          <div className="flex w-full max-w-[640px] flex-col gap-4 pb-3">
+          <div className="flex w-full max-w-[576px] flex-col gap-4 pb-3">
             <p className="pb-2 text-black">Thoughts</p>
             <div className="h-px w-8 bg-[#e8e8e8]" />
             <HoverList
@@ -697,12 +698,29 @@ function ProfileInner() {
             />
           </div>
         ) : shownArticleData ? (
-          <div className="flex w-full max-w-[640px] flex-col gap-5 break-words">
-            <p className="text-black">{shownArticleData.title}</p>
+          <div className="flex w-full max-w-[576px] flex-col gap-7 break-words">
+            <div className="flex flex-col">
+              <p className="pb-4 text-black">{shownArticleData.title}</p>
+              <div className="h-px w-8 bg-[#e8e8e8]" />
+            </div>
             {shownArticleData.body?.map((paragraph, i) => (
-              <p key={i} className="text-[#8d8d8d]">
-                {paragraph}
-              </p>
+              <Fragment key={i}>
+                <p className="text-black">{paragraph}</p>
+                {shownArticle === "why-i-quit-our-studio" && i === 2 && (
+                  <>
+                    <WorkIsPlay />
+                    <figure className="flex border-l border-black/[0.12] py-2.5 pr-2.5 pl-4">
+                      <blockquote className="flex flex-col gap-1 text-black/35">
+                        <p>
+                          “Find what feels like play to you, but looks like work
+                          to others”
+                        </p>
+                        <p>Naval</p>
+                      </blockquote>
+                    </figure>
+                  </>
+                )}
+              </Fragment>
             ))}
           </div>
         ) : null}

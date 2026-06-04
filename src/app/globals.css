@@ -12,6 +12,8 @@
   --font-mono: var(--font-geist-mono);
   /* Strong ease-out — the built-in CSS curves are too weak for UI. */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Slight overshoot — pops elements in with a bit of bounce. */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,6 +29,15 @@ body {
   /* Pin to the real Geist weights — never let the browser synthesize a faux
      weight/style, which renders inconsistently across browsers. */
   font-synthesis: none;
+}
+
+/* Hide the scrollbar everywhere but keep the page scrollable. */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+html::-webkit-scrollbar {
+  display: none; /* Chromium / Safari */
 }
 
 /* --- Inline-link hover preview (photo card stack) --------------------------
@@ -105,13 +116,13 @@ body {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   padding: 6px 10px;
   border-radius: 1000px;
   background: #000;
   color: #fff;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
@@ -129,5 +140,53 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .copied-toast {
     transition-duration: 1ms;
+  }
+}
+
+/* --- "work = play" bubble ---------------------------------------------------
+   The blue comment bubble slowly cycles its hue through the whole rainbow and
+   drifts a few pixels around the canvas in shifting directions, so it feels
+   alive without ever calling attention to itself. */
+@keyframes wip-hue {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes wip-float {
+  0%,
+  100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  20% {
+    transform: translate(7px, -5px) rotate(2.5deg);
+  }
+  40% {
+    transform: translate(-6px, 6px) rotate(-2.5deg);
+  }
+  60% {
+    transform: translate(6px, 5px) rotate(2deg);
+  }
+  80% {
+    transform: translate(-7px, -4px) rotate(-2deg);
+  }
+}
+
+.wip-hue {
+  animation: wip-hue 7s linear infinite;
+}
+
+.wip-float {
+  animation: wip-float 7s ease-in-out infinite;
+  /* Wobble/rotate around the bubble's own centre, not the SVG origin. */
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wip-hue,
+  .wip-float {
+    animation: none;
   }
 }
