@@ -451,8 +451,8 @@ function BottomNav({
   if (articleTitle) titleRef.current = articleTitle;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-10 z-50 flex justify-center px-5">
-      <nav className="pointer-events-auto flex items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium backdrop-blur-[10px]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-5 sm:bottom-10">
+      <nav className="pointer-events-auto flex max-w-[calc(100vw-40px)] items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium backdrop-blur-[10px] sm:max-w-none">
         <button
           type="button"
           onClick={onResume}
@@ -472,7 +472,7 @@ function BottomNav({
         {/* Grid 0fr↔1fr expands the crumb smoothly (CSS, reliably collapsible). */}
         <div
           aria-hidden={!expanded}
-          className="grid overflow-hidden transition-all duration-[400ms] ease-(--ease-bounce)"
+          className="grid min-w-0 overflow-hidden transition-all duration-[400ms] ease-(--ease-bounce)"
           style={{
             gridTemplateColumns: expanded ? "1fr" : "0fr",
             opacity: expanded ? 1 : 0,
@@ -492,8 +492,8 @@ function BottomNav({
             >
               <path d="M8 6l4 4-4 4" />
             </svg>
-            <span className={`${NAV_SEG} bg-black/24 text-white`}>
-              {titleRef.current}
+            <span className={`${NAV_SEG} min-w-0 bg-black/24 text-white`}>
+              <span className="truncate">{titleRef.current}</span>
             </span>
           </div>
         </div>
@@ -578,7 +578,7 @@ function ProfileInner() {
     <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-12 pb-24 text-black sm:pt-32">
       <div
         style={{ opacity: fading ? 0 : 1 }}
-        className="flex w-full flex-col items-center text-[14px] leading-[20px] font-sans font-medium transition-opacity duration-150 ease-(--ease-out-strong)"
+        className="flex w-full flex-col items-center pb-8 text-[14px] leading-[20px] font-sans font-medium transition-opacity duration-150 ease-(--ease-out-strong)"
       >
         {shownScreen === "resume" ? (
           <motion.div
