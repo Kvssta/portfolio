@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
-import { WorkIsPlay } from "./work-is-play";
+import Link from "next/link";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import { thoughts as thoughtsData } from "@/data/thoughts";
+import { getReadArticles } from "@/lib/read-articles";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import type { SoundPatch } from "@web-kits/audio";
 import minimalJson from "@/sounds/minimal.json";
@@ -35,7 +36,8 @@ type Project = {
   name: string;
   role: string;
   href?: string; // external link (new tab, shows arrow)
-  onSelect?: () => void; // in-page action (e.g. open an article)
+  internalHref?: string; // internal route (same tab, no arrow)
+  dot?: boolean; // small leading marker (e.g. readable article)
 };
 
 const projects: Project[] = [
@@ -269,7 +271,8 @@ function ProjectRow({
   name,
   role,
   href,
-  onSelect,
+  internalHref,
+  dot,
   onHover,
   onPress,
   onActivate,
@@ -280,6 +283,12 @@ function ProjectRow({
 }) {
   const title = (
     <span className="flex items-center gap-1">
+      {dot ? (
+        <span
+          aria-hidden
+          className="mr-2 size-1.5 shrink-0 rounded-full bg-[#2e90fa] shadow-[0_0_6px_rgba(46,144,250,0.5)]"
+        />
+      ) : null}
       <span>{name}</span>
       {href ? <ArrowUpRight /> : null}
     </span>
@@ -293,22 +302,21 @@ function ProjectRow({
     "relative z-10 -mx-3 flex w-[calc(100%+24px)] cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-black";
   const linkClass = `${base} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/15`;
 
-  // Internal note → opens its article in-page (no arrow).
-  if (onSelect) {
+  // Internal note → its own article route (same tab, no arrow).
+  if (internalHref) {
     return (
-      <button
-        type="button"
-        onClick={onSelect}
+      <Link
+        href={internalHref}
         onPointerEnter={(e) => {
           onHover();
           onActivate?.(e.currentTarget);
         }}
         onPointerDown={onPress}
-        className={`${linkClass} text-left`}
+        className={linkClass}
       >
         {title}
         {role_}
-      </button>
+      </Link>
     );
   }
 
@@ -425,82 +433,10 @@ const rowReveal: Variants = {
   },
 };
 
-type Screen = "resume" | "thoughts" | "article";
-
-const NAV_SEG =
-  "flex h-8 cursor-pointer items-center justify-center rounded-full px-2.5 py-px whitespace-nowrap transition-colors duration-150";
-
-/** Bottom-center pill nav (Figma 33:552). It's a Resumé/Thoughts toggle that
-    smoothly expands into a breadcrumb (· › current article) on article pages. */
-function BottomNav({
-  screen,
-  articleTitle,
-  onResume,
-  onThoughts,
-  onHover,
-}: {
-  screen: Screen;
-  articleTitle: string;
-  onResume: () => void;
-  onThoughts: () => void;
-  onHover: () => void;
-}) {
-  const expanded = screen === "article";
-  // Retain the last title so it stays visible (clipping) while collapsing.
-  const titleRef = useRef(articleTitle);
-  if (articleTitle) titleRef.current = articleTitle;
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-5 sm:bottom-10">
-      <nav className="pointer-events-auto flex max-w-[calc(100vw-40px)] items-center rounded-full bg-black/24 p-1 text-[14px] leading-[20px] font-sans font-medium backdrop-blur-[10px] sm:max-w-none">
-        <button
-          type="button"
-          onClick={onResume}
-          onPointerEnter={onHover}
-          className={`${NAV_SEG} ${screen === "resume" ? "bg-black/24 text-white" : "text-white/80 hover:text-white"}`}
-        >
-          Resumé
-        </button>
-        <button
-          type="button"
-          onClick={onThoughts}
-          onPointerEnter={onHover}
-          className={`${NAV_SEG} ml-1 ${screen === "thoughts" ? "bg-black/24 text-white" : "text-white/80 hover:text-white"}`}
-        >
-          Thoughts
-        </button>
-        {/* Grid 0fr↔1fr expands the crumb smoothly (CSS, reliably collapsible). */}
-        <div
-          aria-hidden={!expanded}
-          className="grid min-w-0 overflow-hidden transition-all duration-[400ms] ease-(--ease-bounce)"
-          style={{
-            gridTemplateColumns: expanded ? "1fr" : "0fr",
-            opacity: expanded ? 1 : 0,
-            filter: expanded ? "blur(0px)" : "blur(4px)",
-          }}
-        >
-          <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-            <svg
-              viewBox="0 0 20 20"
-              aria-hidden
-              className="ml-1 size-5 shrink-0 text-white/80"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M8 6l4 4-4 4" />
-            </svg>
-            <span className={`${NAV_SEG} min-w-0 bg-black/24 text-white`}>
-              <span className="truncate">{titleRef.current}</span>
-            </span>
-          </div>
-        </div>
-      </nav>
-    </div>
-  );
-}
+// Tracks whether the home entrance has already played. A module-level flag
+// (not a ref) so it survives client-side navigation to an article and back —
+// the stagger runs once per real page load, not every time you return home.
+let homeEntered = false;
 
 function ProfileInner() {
   const patch = usePatch(minimalPatch);
@@ -521,72 +457,41 @@ function ProfileInner() {
     if (patchRef.current.ready) patchRef.current.play(name);
   };
 
-  // The entrance stagger plays only on first load — switching screens is a
-  // plain crossfade, not a re-stagger.
-  const firstLoad = useRef(true);
+  // The entrance stagger plays only on the first real page load.
+  const firstLoad = useRef(!homeEntered);
   useEffect(() => {
-    firstLoad.current = false;
+    homeEntered = true;
   }, []);
 
-  // The bottom nav reflects `screen` immediately (so it expands right away),
-  // while the content crossfades: fade out, swap `shown*` at the midpoint,
-  // fade back in.
-  const [screen, setScreen] = useState<Screen>("resume");
-  const [articleSlug, setArticleSlug] = useState<string | null>(null);
-  const [shownScreen, setShownScreen] = useState<Screen>("resume");
-  const [shownArticle, setShownArticle] = useState<string | null>(null);
-  const [fading, setFading] = useState(false);
-  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const goTo = (next: Screen, slug: string | null = null) => {
-    if (next === screen && slug === articleSlug) return;
-    setScreen(next);
-    setArticleSlug(slug);
-    setFading(true);
-    if (fadeTimer.current) clearTimeout(fadeTimer.current);
-    fadeTimer.current = setTimeout(() => {
-      setShownScreen(next);
-      setShownArticle(slug);
-      setFading(false);
-    }, 150);
-  };
-
-  // Landing via "/#thoughts" opens straight to the Thoughts view.
+  // Read which articles have been opened (cookie) so their "unread" dot drops.
+  // Resolved after mount; the brief initial dot is masked by the page fade-in.
+  const [readSlugs, setReadSlugs] = useState<string[]>([]);
   useEffect(() => {
-    if (window.location.hash === "#thoughts") {
-      setScreen("thoughts");
-      setShownScreen("thoughts");
-    }
+    setReadSlugs(getReadArticles());
   }, []);
 
-  // Thoughts rows: notes open their article in-page; videos open YouTube.
+  // Thoughts rows: notes link to their own article route; videos open YouTube.
   const thoughtRows: Project[] = thoughtsData.map((t) =>
     t.kind === "video"
       ? { name: t.title, role: "Video", href: t.href }
-      : { name: t.title, role: "Note", onSelect: () => goTo("article", t.slug) },
+      : {
+          name: t.title,
+          role: "Note",
+          dot: !readSlugs.includes(t.slug),
+          internalHref: `/article/${t.slug}`,
+        },
   );
-
-  const shownArticleData = shownArticle
-    ? thoughtsData.find((t) => t.slug === shownArticle)
-    : null;
-  const navArticleTitle = articleSlug
-    ? (thoughtsData.find((t) => t.slug === articleSlug)?.title ?? "")
-    : "";
 
   return (
     <MotionConfig reducedMotion="user">
-    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-12 pb-24 text-black sm:pt-32">
-      <div
-        style={{ opacity: fading ? 0 : 1 }}
-        className="flex w-full flex-col items-center pb-8 text-[14px] leading-[20px] font-sans font-medium transition-opacity duration-150 ease-(--ease-out-strong)"
-      >
-        {shownScreen === "resume" ? (
-          <motion.div
-            variants={stagger}
-            initial={firstLoad.current ? "hidden" : "show"}
-            animate="show"
-            className="flex w-full flex-col items-center gap-10"
-          >
+    <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-12 pb-24 text-black sm:pt-[100px]">
+      <div className="flex w-full flex-col items-center pb-8 text-[14px] leading-[20px] font-sans font-medium">
+        <motion.div
+          variants={stagger}
+          initial={firstLoad.current ? "hidden" : "show"}
+          animate="show"
+          className="flex w-full flex-col items-center gap-10"
+        >
                 {/* Header */}
                 <motion.header
                   variants={group}
@@ -676,7 +581,7 @@ function ProfileInner() {
                     ease: [0.23, 1, 0.32, 1],
                     delay: firstLoad.current ? 1 : 0,
                   }}
-                  className="flex w-full max-w-[576px] flex-col gap-4 pb-3"
+                  className="flex w-full max-w-[576px] flex-col gap-4"
                 >
                   <p className="pb-2 text-black">Highlights</p>
                   <div className="h-px w-8 bg-[#e8e8e8]" />
@@ -686,58 +591,28 @@ function ProfileInner() {
                     onPress={playClick}
                   />
                 </motion.section>
-          </motion.div>
-        ) : shownScreen === "thoughts" ? (
-          <div className="flex w-full max-w-[576px] flex-col gap-4 pb-3">
-            <p className="pb-2 text-black">Thoughts</p>
-            <div className="h-px w-8 bg-[#e8e8e8]" />
-            <HoverList
-              items={thoughtRows}
-              onHover={playHover}
-              onPress={playClick}
-            />
-          </div>
-        ) : shownArticleData ? (
-          <div className="flex w-full max-w-[576px] flex-col gap-7 break-words">
-            <div className="flex flex-col">
-              <p className="pb-4 text-black">{shownArticleData.title}</p>
-              <div className="h-px w-8 bg-[#e8e8e8]" />
-            </div>
-            {shownArticleData.body?.map((paragraph, i) => (
-              <Fragment key={i}>
-                <p className="text-black">{paragraph}</p>
-                {shownArticle === "why-i-quit-our-studio" && i === 2 && (
-                  <>
-                    <WorkIsPlay />
-                    <figure className="flex border-l border-black/[0.12] py-2.5 pr-2.5 pl-4">
-                      <blockquote className="flex flex-col gap-1 text-black/35">
-                        <p>
-                          “Find what feels like play to you, but looks like work
-                          to others”
-                        </p>
-                        <p>Naval</p>
-                      </blockquote>
-                    </figure>
-                  </>
-                )}
-              </Fragment>
-            ))}
-          </div>
-        ) : null}
+
+                {/* Thoughts — moved onto the home page, just below Highlights. */}
+                <motion.section
+                  initial={firstLoad.current ? { opacity: 0, y: 12 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: [0.23, 1, 0.32, 1],
+                    delay: firstLoad.current ? 1.12 : 0,
+                  }}
+                  className="flex w-full max-w-[576px] flex-col gap-4"
+                >
+                  <p className="pb-2 text-black">Thoughts</p>
+                  <div className="h-px w-8 bg-[#e8e8e8]" />
+                  <HoverList
+                    items={thoughtRows}
+                    onHover={playHover}
+                    onPress={playClick}
+                  />
+                </motion.section>
+        </motion.div>
       </div>
-      <BottomNav
-        screen={screen}
-        articleTitle={navArticleTitle}
-        onResume={() => {
-          playSound("tab-switch");
-          goTo("resume");
-        }}
-        onThoughts={() => {
-          playSound("tab-switch");
-          goTo("thoughts");
-        }}
-        onHover={playHover}
-      />
     </main>
     </MotionConfig>
   );
