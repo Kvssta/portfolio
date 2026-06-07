@@ -17,7 +17,7 @@ export function Article({ thought }: { thought: Thought }) {
               href="/"
               className="mb-6 w-fit text-[#8d8d8d] transition-colors duration-150 ease-(--ease-out-strong) [@media(hover:hover)]:hover:text-black"
             >
-              Back
+              Index
             </Link>
             <p className="pb-4 text-black">{thought.title}</p>
             <div className="h-px w-8 bg-[#e8e8e8]" />

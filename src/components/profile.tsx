@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import { thoughts as thoughtsData } from "@/data/thoughts";
+import { playground as playgroundData } from "@/data/playground";
 import { getReadArticles } from "@/lib/read-articles";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import type { SoundPatch } from "@web-kits/audio";
@@ -482,6 +483,13 @@ function ProfileInner() {
         },
   );
 
+  // Playground rows: each experiment links to its own /playground route.
+  const playgroundRows: Project[] = playgroundData.map((p) => ({
+    name: p.title,
+    role: p.role,
+    internalHref: `/playground/${p.slug}`,
+  }));
+
   return (
     <MotionConfig reducedMotion="user">
     <main className="flex min-h-screen w-full justify-center overflow-x-clip bg-[#fafafa] px-5 pt-12 pb-24 text-black sm:pt-[100px]">
@@ -607,6 +615,26 @@ function ProfileInner() {
                   <div className="h-px w-8 bg-[#e8e8e8]" />
                   <HoverList
                     items={thoughtRows}
+                    onHover={playHover}
+                    onPress={playClick}
+                  />
+                </motion.section>
+
+                {/* Playground — small experiments, each on its own route. */}
+                <motion.section
+                  initial={firstLoad.current ? { opacity: 0, y: 12 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: [0.23, 1, 0.32, 1],
+                    delay: firstLoad.current ? 1.24 : 0,
+                  }}
+                  className="flex w-full max-w-[576px] flex-col gap-4"
+                >
+                  <p className="pb-2 text-black">Playground</p>
+                  <div className="h-px w-8 bg-[#e8e8e8]" />
+                  <HoverList
+                    items={playgroundRows}
                     onHover={playHover}
                     onPress={playClick}
                   />
