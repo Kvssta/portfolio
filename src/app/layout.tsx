@@ -30,9 +30,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
-  // The opengraph-image.png file auto-populates og:image / twitter:image.
-  // These explicit blocks pin the card type and add X attribution so the
-  // large-image card renders consistently on X / Twitter.
+  // opengraph-image.tsx and twitter-image.tsx render the same image and
+  // auto-populate og:image / twitter:image. These blocks pin the card type and
+  // add X attribution so the large-image card renders consistently on X.
   openGraph: {
     type: "website",
     url: "/",
