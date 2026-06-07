@@ -71,6 +71,12 @@ function MembershipCardFlowInner() {
 
   const trimmed = name.trim();
   const canContinue = trimmed.length >= 3;
+  // Title-case for the card: first letter of each word upper, the rest lower.
+  const displayName = trimmed
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
   const isCard = phase === "card";
 
   // Subtle 3D tilt that follows the cursor while hovering the card.
@@ -107,6 +113,7 @@ function MembershipCardFlowInner() {
 
   // Refresh — jump straight back to the name input, no morph.
   const reset = () => {
+    playSound("page-exit");
     setInstant(true);
     setName("");
     setSignState("unsigned");
@@ -246,18 +253,44 @@ function MembershipCardFlowInner() {
               className="relative mx-auto w-full overflow-hidden"
             >
               {!isCard ? (
-                <input
-                  type="text"
-                  value={name}
-                  autoFocus
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") toCard();
-                  }}
-                  placeholder="e.g John"
-                  aria-label="Your name"
-                  className="absolute inset-0 h-full w-full bg-transparent p-[14px] text-[#202020] outline-none placeholder:text-[#8d8d8d]"
-                />
+                <>
+                  <input
+                    type="text"
+                    value={name}
+                    autoFocus
+                    maxLength={20}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      if (canContinue) {
+                        toCard();
+                      } else {
+                        // Can't continue yet — shake the input + error sound.
+                        playSound("error");
+                        shake.start({
+                          x: [0, -5, 4, -3, 2, -1, 0],
+                          transition: { duration: 0.4, ease: "easeInOut" },
+                        });
+                      }
+                    }}
+                    placeholder="e.g John"
+                    aria-label="Your name"
+                    className="absolute inset-0 h-full w-full bg-transparent py-[14px] pr-12 pl-[14px] text-[#202020] outline-none placeholder:text-[#8d8d8d]"
+                  />
+                  {trimmed.length >= 3 ? (
+                    <motion.button
+                      type="button"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.18, ease: EASE }}
+                      onClick={toCard}
+                      aria-label="Continue"
+                      className="absolute top-2 right-2 flex size-8 cursor-pointer items-center justify-center rounded-[8px] bg-black/[0.04] font-sans text-[14px] leading-none font-medium text-[#838383] transition-colors duration-150 hover:bg-black/[0.08] [@media(hover:hover)]:hover:text-black"
+                    >
+                      <span className="block translate-y-[1.5px]">↵</span>
+                    </motion.button>
+                  ) : null}
+                </>
               ) : (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -277,7 +310,7 @@ function MembershipCardFlowInner() {
                   ) : null}
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-[31.58px]">
                     <div className="flex min-w-0 flex-col">
-                      <p className="truncate text-white">{trimmed}&rsquo;s card</p>
+                      <p className="truncate text-white">{displayName}&rsquo;s card</p>
                       <p className="text-white/50">0 calories tracked</p>
                     </div>
                     <button
@@ -314,25 +347,6 @@ function MembershipCardFlowInner() {
               </div>
             ) : null}
           </motion.div>
-        </div>
-
-        <div className="flex justify-center pb-10 text-[14px] leading-[20px] font-sans font-medium">
-          <motion.button
-            type="button"
-            disabled={isCard || !canContinue}
-            onClick={toCard}
-            initial={false}
-            animate={{ opacity: isCard ? 0 : 1 }}
-            transition={instant ? { duration: 0 } : { duration: 0.3, ease: EASE }}
-            style={{ pointerEvents: isCard ? "none" : "auto" }}
-            className={`rounded-full px-3 py-2 text-white transition-colors duration-150 ease-(--ease-out-strong) ${
-              !isCard && canContinue
-                ? "cursor-pointer bg-black"
-                : "cursor-not-allowed bg-[#d9d9d9]"
-            }`}
-          >
-            Continue
-          </motion.button>
         </div>
       </div>
     </main>
