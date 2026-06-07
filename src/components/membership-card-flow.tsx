@@ -277,8 +277,8 @@ function MembershipCardFlowInner() {
                   ) : null}
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-[31.58px]">
                     <div className="flex min-w-0 flex-col">
-                      <p className="truncate text-white">{trimmed}&rsquo;s Card</p>
-                      <p className="text-white/50">0 Calories tracked</p>
+                      <p className="truncate text-white">{trimmed}&rsquo;s card</p>
+                      <p className="text-white/50">0 calories tracked</p>
                     </div>
                     <button
                       type="button"
