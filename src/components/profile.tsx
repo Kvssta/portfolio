@@ -294,13 +294,17 @@ function ProjectRow({
       {href ? <ArrowUpRight /> : null}
     </span>
   );
-  const role_ = <span className="text-[#8d8d8d]">{role}</span>;
+  const role_ = (
+    <span className="text-[#8d8d8d] transition-colors duration-150 [@media(hover:hover)]:group-hover:text-black">
+      {role}
+    </span>
+  );
 
   // 12px padding; -mx-3 + width:100%+24px makes the row 24px wider than the
   // 640px column so the text still aligns with the content above. z-10 keeps
   // the content above the shared moving hover background.
   const base =
-    "relative z-10 -mx-3 flex w-[calc(100%+24px)] cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-black";
+    "group relative z-10 -mx-3 flex w-[calc(100%+24px)] cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-[#8d8d8d] transition-colors duration-150 [@media(hover:hover)]:hover:text-black";
   const linkClass = `${base} outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black/15`;
 
   // Internal note → its own article route (same tab, no arrow).

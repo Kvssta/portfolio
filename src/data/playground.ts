@@ -6,5 +6,5 @@ export type PlaygroundItem = {
 };
 
 export const playground: PlaygroundItem[] = [
-  { slug: "membership-card", title: "Membership card", role: "Card" },
+  { slug: "membership-card", title: "Membership card", role: "Interactions" },
 ];
